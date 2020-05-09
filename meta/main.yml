@@ -1,0 +1,21 @@
+---
+#
+# Documentation for Ansible role metadata can be found here:
+#   https://galaxy.ansible.com/docs/contributing/creating_role.html#role-metadata
+#
+galaxy_info:
+  author: Brian Jakovich <bjakovich@verticalrelevance.com>
+  cloud_platforms:
+    - AWS
+  company: Vertical Relevance
+  description: Ansible component that installs baseline applications on a Windows Server
+  galaxy_tags:
+    - component
+    - windows
+  github_branch: master
+  license: None
+  min_ansible_version: 2.6.1
+  platforms:
+    - name: windows-2010
+dependencies: []
+...

@@ -1,0 +1,155 @@
+---
+- name: Include variables
+  include_vars: main.yml
+
+- name: Install AWS Tools for Windows PowerShell 1.1.1120.20130916
+  win_chocolatey:
+    name: awstools.powershell
+    state: present
+    version: '1.1.1120.20130916'
+    ignore_checksums: yes
+  become: yes
+  become_method: runas
+  become_user: SYSTEM
+
+- name: Reboot to apply AWS Tools for Windows PowerShell updates
+  win_reboot:
+
+# Create the directories for files to be placed in
+- name: Create Scripts directory
+  win_file:
+    path: C:\{{ item }}
+    state: directory
+  with_items:
+  - Scripts
+
+# Copy set-registry script that is run on each user login onto machine
+- name: Copy set-registry.ps1 Poweshell script
+  win_copy:
+    src: ./files/set-registry.ps1
+    dest: C:\Scripts\set-registry.ps1
+
+# Import AWSPowershell Module
+- name: Import AWSPowershell Module
+  win_psmodule:
+    name: AWSPowerShell
+    state: present
+
+# Install packages with win_chocolatey
+# Carbon has been problematic during Inspec Tests.
+# Note: do all carbon based powershell changes prior to Ansible
+- name: Ensure Carbon is not installed
+  win_chocolatey:
+    name: carbon
+    state: absent
+
+# Chocolatey Installation of baseline apps.
+# Note: Powershell 5 Upgrade must be performed before ansible playbook is run.
+- name: Install AWS CLI 1.16.6 (1.16.7 unavailable)
+  win_chocolatey:
+    name: awscli
+    state: present
+    version: '1.16.6'
+    ignore_checksums: yes
+
+- name: Install WinDorStat 1.1.2.20161210
+  win_chocolatey:
+    name: windirstat
+    state: present
+    version: '1.1.2.20161210'
+    ignore_checksums: yes
+
+- name: Install Git 2.18.0
+  win_chocolatey:
+    name: git
+    state: present
+    version: '2.18.0'
+    ignore_checksums: yes
+
+- name: Install Notepad++ 7.5.8
+  win_chocolatey:
+    name: notepadplusplus
+    state: present
+    version: '7.5.8'
+    ignore_checksums: yes
+
+- name: Install Sysinternals 2018.8.8
+  win_chocolatey:
+    name: sysinternals
+    state: present
+    version: '2018.8.8'
+    ignore_checksums: yes
+
+- name: Install 7Zip 18.5.0.20180730
+  win_chocolatey:
+    name: 7zip
+    state: present
+    version: '18.5.0.20180730'
+    ignore_checksums: yes
+
+- name: Install LogParser 2.2.0.1
+  win_chocolatey:
+    name: logparser
+    state: present
+    version: '2.2.0.1'
+    ignore_checksums: yes
+
+- name: Install Putty 0.70.0.20171219
+  win_chocolatey:
+    name: putty
+    state: present
+    version: '0.70.0.20171219'
+    ignore_checksums: yes
+
+- name: Install Google Chrome 69.0.3497.8100
+  win_chocolatey:
+    name: googlechrome
+    state: present
+    version: '69.0.3497.8100'
+    ignore_checksums: yes
+
+# Enable .Net Features - prerequisite for .Net installation
+- name: Enable .Net Features
+  win_feature:
+    name: NET-Framework-Features
+    state: present
+
+# Install .Net Framework Upgrades.
+# 4.7.1 must be run outside of ansible as it requires private folder
+- name: Install .Net 4.6.2 and .Net 4.7
+  win_chocolatey:
+    name: "{{ item }}"
+    state: present
+  with_items:
+  - netfx-4.6.2-devpack
+  - netfx-4.7-devpack
+  - kb2919355
+
+# Pin the Applications to the task bar
+- name: Pin apps
+  win_shell: |
+    $shell = New-Object -COM "Shell.Application"
+    $folder = $shell.Namespace({{ item.path }})
+    $item = $folder.Parsename({{ item.executable }})
+    $verb = $item.Verbs() | ? {$_.Name -eq 'Pin to Tas&kbar'}
+    if ($verb -ne $null) {
+        $verb.DoIt()
+    }
+  with_items:
+    - { path: '"C:\Program Files (x86)\WinDirStat"', executable: '"windirstat.exe"' }
+    - { path: '"C:\Program Files (x86)\Google\Chrome\Application"', executable: '"chrome.exe"' }
+
+# Set the Task Scheduler to execute set-registry.ps1 on user login
+- name: Create task to run set-registry.ps1 on user login
+  win_scheduled_task:
+    name: Set Desktop Environment
+    description: Sets the Desktop environment per user
+    actions:
+    - path: C:\Windows\System32\WindowsPowerShell\v1.0\powershell.exe
+      arguments: -Noninteractive -NoLogo -WindowStyle Hidden -Executionpolicy bypass -File C:\Scripts\set-registry.ps1
+    triggers:
+    - type: logon
+    group: BUILTIN\Users
+    run_level: highest
+    state: present
+...
